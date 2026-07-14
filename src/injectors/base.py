@@ -5,7 +5,6 @@ All injectors must inherit from BaseInjector and implement the get_payload metho
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional
 
 
 class BaseInjector(ABC):
@@ -16,7 +15,7 @@ class BaseInjector(ABC):
     Subclasses should provide specific payload generation logic.
     """
 
-    def __init__(self, config: Optional[dict] = None):
+    def __init__(self, config: dict | None = None):
         """
         Initialize the injector.
 

@@ -9,7 +9,6 @@ import threading
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, Optional
 
 
 @dataclass
@@ -20,9 +19,9 @@ class TargetStats:
     packets_processed: int = 0
     injections_attempted: int = 0
     successful_injections: int = 0
-    last_injection: Optional[datetime] = None
+    last_injection: datetime | None = None
     hooked: bool = False
-    hook_time: Optional[datetime] = None
+    hook_time: datetime | None = None
 
 
 @dataclass
@@ -60,9 +59,9 @@ class StatsDashboard:
         self.verbose = verbose
 
         self.global_stats = GlobalStats()
-        self.target_stats: Dict[str, TargetStats] = {}
+        self.target_stats: dict[str, TargetStats] = {}
         self.running = False
-        self.display_thread: Optional[threading.Thread] = None
+        self.display_thread: threading.Thread | None = None
 
     def add_target(self, ip: str) -> None:
         """

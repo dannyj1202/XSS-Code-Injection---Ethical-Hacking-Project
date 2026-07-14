@@ -7,7 +7,9 @@ and passes them to the packet handler for processing.
 
 import contextlib
 import signal
-from typing import TYPE_CHECKING, Optional, Set
+import traceback
+from types import FrameType
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from netfilterqueue import NetfilterQueue
@@ -34,7 +36,7 @@ class NFQueueLoop:
         self,
         injector: BaseInjector,
         config: InjectionConfig,
-        targets: Set[str],
+        targets: set[str],
         queue_num: int = 0,
         verbose: bool = False,
     ):
@@ -58,15 +60,16 @@ class NFQueueLoop:
             injector=injector, config=config, targets=targets, verbose=verbose
         )
 
-        self.nfq: Optional[NetfilterQueue] = None
+        self.nfq: NetfilterQueue | None = None
         self.running = False
+        self._cleaned = False
 
     def setup_signal_handlers(self) -> None:
         """Setup signal handlers for graceful shutdown."""
         signal.signal(signal.SIGINT, self._signal_handler)
         signal.signal(signal.SIGTERM, self._signal_handler)
 
-    def _signal_handler(self, signum, frame) -> None:
+    def _signal_handler(self, signum: int, frame: FrameType | None) -> None:
         """
         Handle shutdown signals.
 
@@ -106,11 +109,13 @@ class NFQueueLoop:
 
         except Exception as e:
             print(f"Error in NFQUEUE loop: {e}")
+            if self.verbose:
+                traceback.print_exc()
             raise
         finally:
             self.cleanup()
 
-    def _process_packet(self, packet) -> None:
+    def _process_packet(self, packet: Any) -> None:
         """
         Process a single packet from the queue.
 
@@ -132,6 +137,10 @@ class NFQueueLoop:
 
     def cleanup(self) -> None:
         """Cleanup resources."""
+        if self._cleaned:
+            return
+        self._cleaned = True
+
         if self.nfq:
             with contextlib.suppress(Exception):
                 self.nfq.unbind()

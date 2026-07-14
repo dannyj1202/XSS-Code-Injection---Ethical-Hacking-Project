@@ -17,7 +17,6 @@ import re
 import time
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Optional, Set
 
 import requests
 
@@ -58,11 +57,11 @@ class ARPMonitor:
             verbose: Enable verbose output
         """
         self.verbose = verbose
-        self.arp_cache: Dict[str, ARPEntry] = {}
-        self.gateway_mac: Optional[str] = None
-        self.alerts: List[DetectionAlert] = []
+        self.arp_cache: dict[str, ARPEntry] = {}
+        self.gateway_mac: str | None = None
+        self.alerts: list[DetectionAlert] = []
 
-    def get_arp_table(self) -> List[ARPEntry]:
+    def get_arp_table(self) -> list[ARPEntry]:
         """
         Get current ARP table.
 
@@ -94,7 +93,7 @@ class ARPMonitor:
             print(f"Error reading ARP table: {e}")
             return []
 
-    def detect_arp_changes(self) -> List[DetectionAlert]:
+    def detect_arp_changes(self) -> list[DetectionAlert]:
         """
         Detect suspicious ARP changes.
 
@@ -183,9 +182,9 @@ class ContentLengthMonitor:
             verbose: Enable verbose output
         """
         self.verbose = verbose
-        self.alerts: List[DetectionAlert] = []
+        self.alerts: list[DetectionAlert] = []
 
-    def check_response(self, response: requests.Response) -> Optional[DetectionAlert]:
+    def check_response(self, response: requests.Response) -> DetectionAlert | None:
         """
         Check HTTP response for Content-Length anomalies.
 
@@ -232,7 +231,7 @@ class ScriptInjectionDetector:
     This checks for unexpected <script> tags in responses.
     """
 
-    def __init__(self, known_clean_urls: Set[str], verbose: bool = False):
+    def __init__(self, known_clean_urls: set[str], verbose: bool = False):
         """
         Initialize script injection detector.
 
@@ -242,9 +241,9 @@ class ScriptInjectionDetector:
         """
         self.known_clean_urls = known_clean_urls
         self.verbose = verbose
-        self.alerts: List[DetectionAlert] = []
+        self.alerts: list[DetectionAlert] = []
 
-    def check_for_injection(self, response: requests.Response) -> Optional[DetectionAlert]:
+    def check_for_injection(self, response: requests.Response) -> DetectionAlert | None:
         """
         Check response for injected scripts.
 
@@ -297,9 +296,9 @@ class AcceptEncodingMonitor:
             verbose: Enable verbose output
         """
         self.verbose = verbose
-        self.alerts: List[DetectionAlert] = []
+        self.alerts: list[DetectionAlert] = []
 
-    def check_request(self, request_headers: dict) -> Optional[DetectionAlert]:
+    def check_request(self, request_headers: dict) -> DetectionAlert | None:
         """
         Check if Accept-Encoding was stripped from request.
 
@@ -346,7 +345,7 @@ class BlueTeamDetector:
         self.script_detector = ScriptInjectionDetector(set(), verbose)
         self.encoding_monitor = AcceptEncodingMonitor(verbose)
 
-        self.all_alerts: List[DetectionAlert] = []
+        self.all_alerts: list[DetectionAlert] = []
 
     def run_comprehensive_scan(self) -> None:
         """Run a comprehensive security scan."""

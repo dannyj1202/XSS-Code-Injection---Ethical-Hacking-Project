@@ -13,7 +13,6 @@ touched:
 
 import ipaddress
 from pathlib import Path
-from typing import Set
 
 # Standard EICAR antivirus test string (not malware). Used as the default,
 # always-safe payload body so the tool can be demonstrated end-to-end
@@ -47,9 +46,9 @@ class SafetyConfig:
 
     def __init__(self, targets_file: Path) -> None:
         self.targets_file = Path(targets_file)
-        self.targets: Set[str] = set()
+        self.targets: set[str] = set()
 
-    def _load_targets(self) -> Set[str]:
+    def _load_targets(self) -> set[str]:
         if not self.targets_file.exists():
             raise SafetyValidationError(
                 f"Targets file not found: {self.targets_file}. "
@@ -57,7 +56,7 @@ class SafetyConfig:
                 f"  echo '192.168.1.101' > {self.targets_file}"
             )
 
-        targets: Set[str] = set()
+        targets: set[str] = set()
         for raw_line in self.targets_file.read_text().splitlines():
             line = raw_line.strip()
             if not line or line.startswith("#"):

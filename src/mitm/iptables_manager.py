@@ -2,7 +2,6 @@
 
 import subprocess
 from dataclasses import dataclass, field
-from typing import List
 
 
 @dataclass
@@ -11,16 +10,16 @@ class IptablesRule:
 
     table: str = "filter"
     chain: str = "FORWARD"
-    args: List[str] = field(default_factory=list)
+    args: list[str] = field(default_factory=list)
 
-    def add_cmd(self) -> List[str]:
+    def add_cmd(self) -> list[str]:
         cmd = ["iptables"]
         if self.table != "filter":
             cmd.extend(["-t", self.table])
         cmd.extend(["-A", self.chain, *self.args])
         return cmd
 
-    def delete_cmd(self) -> List[str]:
+    def delete_cmd(self) -> list[str]:
         cmd = ["iptables"]
         if self.table != "filter":
             cmd.extend(["-t", self.table])
@@ -36,9 +35,9 @@ class IptablesManager:
         self.interface = interface
         self.verbose = verbose
         self.installed = False
-        self._rules: List[IptablesRule] = self._default_rules()
+        self._rules: list[IptablesRule] = self._default_rules()
 
-    def _default_rules(self) -> List[IptablesRule]:
+    def _default_rules(self) -> list[IptablesRule]:
         return [
             IptablesRule(
                 args=[
@@ -59,7 +58,7 @@ class IptablesManager:
             ),
         ]
 
-    def _run(self, cmd: List[str]) -> bool:
+    def _run(self, cmd: list[str]) -> bool:
         try:
             subprocess.run(cmd, check=True, capture_output=True, text=True)
             return True

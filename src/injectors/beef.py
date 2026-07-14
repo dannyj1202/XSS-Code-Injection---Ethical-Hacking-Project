@@ -5,7 +5,6 @@ This injector generates a BeEF (Browser Exploitation Framework) hook script
 for security research and lab demonstrations.
 """
 
-from typing import Optional
 
 from .base import BaseInjector
 
@@ -18,7 +17,7 @@ class BeefHookInjector(BaseInjector):
     This injector creates a hook script that connects to a BeEF server.
     """
 
-    def __init__(self, config: Optional[dict] = None):
+    def __init__(self, config: dict | None = None):
         """
         Initialize the BeEF hook injector.
 

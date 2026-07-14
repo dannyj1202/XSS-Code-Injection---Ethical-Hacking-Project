@@ -5,7 +5,6 @@ This injector generates a simple JavaScript alert for testing purposes.
 It's a benign payload that demonstrates injection without any security impact.
 """
 
-from typing import Optional
 
 from .base import BaseInjector
 
@@ -18,7 +17,7 @@ class AlertTestInjector(BaseInjector):
     when the page loads. Useful for verifying injection works.
     """
 
-    def __init__(self, config: Optional[dict] = None):
+    def __init__(self, config: dict | None = None):
         """
         Initialize the alert test injector.
 

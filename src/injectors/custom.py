@@ -5,7 +5,6 @@ This injector loads JavaScript code from a file for custom payloads.
 """
 
 from pathlib import Path
-from typing import Optional
 
 from .base import BaseInjector
 
@@ -18,7 +17,7 @@ class CustomJSInjector(BaseInjector):
     from a file for custom testing scenarios.
     """
 
-    def __init__(self, config: Optional[dict] = None):
+    def __init__(self, config: dict | None = None):
         """
         Initialize the custom JS injector.
 

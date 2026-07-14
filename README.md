@@ -127,8 +127,9 @@ xss-code-injection/
 
 ### Prerequisites
 - Linux (tested on Kali Linux, Ubuntu)
-- Python 3.8+
-- Root/sudo privileges
+- Python 3.10+
+- Root/sudo privileges (or `CAP_NET_ADMIN` and `CAP_NET_RAW` capabilities)
+  - *Why?* NFQUEUE binding requires `CAP_NET_ADMIN`, sending raw ARP packets requires `CAP_NET_RAW`, and modifying iptables rules requires `CAP_NET_ADMIN`.
 - NetfilterQueue support
 - Scapy
 
@@ -262,7 +263,7 @@ This attack works only on **unencrypted HTTP**. Modern security controls prevent
 
 ### Detection Methods
 
-The included `detect.py` demonstrates blue team detection:
+The included `src/detection/detect.py` demonstrates blue team detection. Note: The detection module is currently a proof-of-concept and requires additional test coverage.
 
 ```bash
 # Run comprehensive scan

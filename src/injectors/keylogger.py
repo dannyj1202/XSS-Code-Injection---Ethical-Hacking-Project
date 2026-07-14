@@ -5,7 +5,6 @@ This injector generates a benign keylogger demonstration for lab purposes.
 It logs keystrokes to console only - no data exfiltration.
 """
 
-from typing import Optional
 
 from .base import BaseInjector
 
@@ -18,7 +17,7 @@ class KeyloggerDemoInjector(BaseInjector):
     It does NOT exfiltrate data and is for educational purposes only.
     """
 
-    def __init__(self, config: Optional[dict] = None):
+    def __init__(self, config: dict | None = None):
         """
         Initialize the keylogger demo injector.
 

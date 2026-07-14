@@ -8,7 +8,6 @@ to detect hooked browsers and close the loop between injection and BeEF.
 import time
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Optional, Set
 
 import requests
 
@@ -38,7 +37,7 @@ class BeEFIntegration:
         self,
         host: str = "127.0.0.1",
         port: int = 3000,
-        api_token: Optional[str] = None,
+        api_token: str | None = None,
         verbose: bool = False,
     ):
         """
@@ -56,12 +55,12 @@ class BeEFIntegration:
         self.verbose = verbose
 
         self.base_url = f"http://{host}:{port}/api"
-        self.hooked_browsers: Dict[str, HookedBrowser] = {}
-        self.known_session_ids: Set[str] = set()
+        self.hooked_browsers: dict[str, HookedBrowser] = {}
+        self.known_session_ids: set[str] = set()
 
         self.running = False
 
-    def _get_headers(self) -> Dict[str, str]:
+    def _get_headers(self) -> dict[str, str]:
         """
         Get headers for API requests.
 
@@ -72,7 +71,7 @@ class BeEFIntegration:
             return {"Authorization": f"Token {self.api_token}", "Content-Type": "application/json"}
         return {"Content-Type": "application/json"}
 
-    def _api_request(self, endpoint: str, method: str = "GET") -> Optional[dict]:
+    def _api_request(self, endpoint: str, method: str = "GET") -> dict | None:
         """
         Make a request to the BeEF API.
 
@@ -103,7 +102,7 @@ class BeEFIntegration:
                 print(f"Error connecting to BeEF API: {e}")
             return None
 
-    def get_online_browsers(self) -> List[HookedBrowser]:
+    def get_online_browsers(self) -> list[HookedBrowser]:
         """
         Get list of currently online hooked browsers.
 
@@ -136,7 +135,7 @@ class BeEFIntegration:
 
         return browsers
 
-    def check_new_hooks(self) -> List[HookedBrowser]:
+    def check_new_hooks(self) -> list[HookedBrowser]:
         """
         Check for newly hooked browsers since last check.
 

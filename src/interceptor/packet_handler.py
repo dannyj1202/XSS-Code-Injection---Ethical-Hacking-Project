@@ -16,12 +16,18 @@ from ``TARGETS.txt`` via ``SafetyConfig``) so nothing outside the
 authorized lab hosts is ever touched.
 """
 
+import logging
 import re
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Dict, Set, Tuple
+from typing import TYPE_CHECKING
 
 from scapy.all import IP, TCP, Raw
+
+from ..config.settings import InjectionConfig
+from ..injectors.base import BaseInjector
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from netfilterqueue import Packet
@@ -30,9 +36,6 @@ else:
         from netfilterqueue import Packet
     except ImportError:
         Packet = object  # type: ignore[misc, assignment]
-
-from ..config.settings import InjectionConfig
-from ..injectors.base import BaseInjector
 
 # HTTP headers and status lines are ASCII/Latin-1 by spec (RFC 7230), but an
 # HTML *body* can legally contain arbitrary bytes in another charset (e.g.
@@ -74,7 +77,7 @@ class PacketHandler:
         self,
         injector: BaseInjector,
         config: InjectionConfig,
-        targets: Set[str],
+        targets: set[str],
         verbose: bool = False,
     ):
         """
@@ -94,7 +97,7 @@ class PacketHandler:
         self.stats = InjectionStats()
 
         # Session tracking for throttling
-        self.session_injection_times: Dict[str, datetime] = {}
+        self.session_injection_times: dict[str, datetime] = {}
 
         # Domain/path targeting
         self.domain_whitelist = set(config.domain_whitelist)
@@ -151,7 +154,7 @@ class PacketHandler:
 
         except Exception as e:
             if self.verbose:
-                print(f"Error processing packet: {e}")
+                logger.error(f"Error processing packet: {e}")
             packet.accept()
 
     def _process_http_request(self, packet: Packet, pkt: IP) -> None:
@@ -204,13 +207,13 @@ class PacketHandler:
             packet.set_payload(bytes(pkt))
 
             if self.verbose:
-                print(f"[+] Stripped Accept-Encoding from request to {pkt[IP].dst}")
+                logger.info(f"[+] Stripped Accept-Encoding from request to {pkt[IP].dst}")
 
             packet.accept()
 
         except Exception as e:
             if self.verbose:
-                print(f"Error processing HTTP request: {e}")
+                logger.error(f"Error processing HTTP request: {e}")
             packet.accept()
 
     def _process_http_response(self, packet: Packet, pkt: IP, target_ip: str) -> None:
@@ -279,7 +282,7 @@ class PacketHandler:
                 else:
                     # Error on chunked
                     if self.verbose:
-                        print(f"Skipping chunked response from {target_ip}")
+                        logger.warning(f"Skipping chunked response from {target_ip}")
                     self.stats.skipped_responses += 1
                     packet.accept()
                     return
@@ -322,7 +325,7 @@ class PacketHandler:
             packet.set_payload(bytes(pkt))
 
             if self.verbose:
-                print(f"[+] Injected payload into response for {target_ip}")
+                logger.info(f"[+] Injected payload into response for {target_ip}")
 
             packet.accept()
 
@@ -331,11 +334,11 @@ class PacketHandler:
 
         except Exception as e:
             if self.verbose:
-                print(f"Error processing HTTP response: {e}")
+                logger.error(f"Error processing HTTP response: {e}")
             self.stats.content_length_errors += 1
             packet.accept()
 
-    def _parse_http_response(self, http_data: str) -> Tuple[str, Dict[str, str], str]:
+    def _parse_http_response(self, http_data: str) -> tuple[str, dict[str, str], str]:
         """
         Parse HTTP response into its status line, headers and body.
 
@@ -348,7 +351,7 @@ class PacketHandler:
         lines = http_data.split("\r\n")
         status_line = lines[0] if lines else "HTTP/1.1 200 OK"
 
-        headers: Dict[str, str] = {}
+        headers: dict[str, str] = {}
         body_start = len(lines)
 
         for i, line in enumerate(lines[1:], 1):
@@ -364,7 +367,7 @@ class PacketHandler:
 
         return status_line, headers, body
 
-    def _rebuild_http_response(self, status_line: str, headers: Dict[str, str], body: str) -> str:
+    def _rebuild_http_response(self, status_line: str, headers: dict[str, str], body: str) -> str:
         """
         Rebuild HTTP response from its status line, headers and body.
 
@@ -457,7 +460,7 @@ class PacketHandler:
 
         return "".join(decoded)
 
-    def _check_targeting_rules(self, headers: Dict[str, str], body: str) -> bool:
+    def _check_targeting_rules(self, headers: dict[str, str], body: str) -> bool:
         """
         Check domain and path targeting rules.
 
@@ -482,7 +485,7 @@ class PacketHandler:
         # Check path blacklist
         return not (self.path_blacklist and any(path in body for path in self.path_blacklist))
 
-    def _get_session_id(self, headers: Dict[str, str], target_ip: str) -> str:
+    def _get_session_id(self, headers: dict[str, str], target_ip: str) -> str:
         """
         Generate a session ID for throttling.
 
@@ -492,6 +495,12 @@ class PacketHandler:
 
         Returns:
             Session identifier string
+
+        Note:
+            Uses Python's built-in ``hash()`` which is salted per-process
+            (PYTHONHASHSEED). This means session IDs are only stable for the
+            lifetime of the current process, which is sufficient for our
+            in-memory throttling dictionary.
         """
         # Use IP and User-Agent for session identification
         user_agent = headers.get("User-Agent", "")

@@ -5,7 +5,6 @@ This injector uses the standard EICAR test string for antivirus testing.
 It's the default safe payload for demonstrating injection without actual malware.
 """
 
-from typing import Optional
 
 from ..config.safety import EICAR_TEST_STRING
 from .base import BaseInjector
@@ -20,7 +19,7 @@ class EicarTestInjector(BaseInjector):
     payload for safe, educational demonstrations.
     """
 
-    def __init__(self, config: Optional[dict] = None):
+    def __init__(self, config: dict | None = None):
         """
         Initialize the EICAR injector.
 

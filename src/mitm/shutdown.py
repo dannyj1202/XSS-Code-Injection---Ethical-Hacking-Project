@@ -2,7 +2,8 @@
 
 import atexit
 import signal
-from typing import Callable, List
+from collections.abc import Callable
+from types import FrameType
 
 
 class ShutdownCoordinator:
@@ -10,7 +11,7 @@ class ShutdownCoordinator:
 
     def __init__(self, verbose: bool = False) -> None:
         self.verbose = verbose
-        self._cleanup_callbacks: List[Callable[[], None]] = []
+        self._cleanup_callbacks: list[Callable[[], None]] = []
         self._cleaned = False
         self._handlers_installed = False
 
@@ -27,7 +28,7 @@ class ShutdownCoordinator:
         atexit.register(self.cleanup)
         self._handlers_installed = True
 
-    def _handle_signal(self, signum, frame) -> None:
+    def _handle_signal(self, signum: int, frame: FrameType | None) -> None:
         if self.verbose:
             print(f"\nReceived signal {signum}, cleaning up...")
         self.cleanup()

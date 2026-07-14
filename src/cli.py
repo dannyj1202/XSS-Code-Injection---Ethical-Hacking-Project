@@ -6,12 +6,12 @@ This module provides the CLI using argparse for user interaction.
 
 import argparse
 import sys
+import traceback
 from pathlib import Path
-from typing import Optional
 
 from .auto_hook import AutoHookAgent
 from .beef_integration import BeEFIntegration
-from .config import SafetyConfig, load_config
+from .config import Config, SafetyConfig, load_config
 from .injectors import (
     AlertTestInjector,
     BaseInjector,
@@ -26,14 +26,14 @@ from .mitm import ARPSpoofer, IptablesManager, ShutdownCoordinator
 
 
 def create_injector(
-    payload_type: str, config: dict, custom_file: Optional[str] = None
+    payload_type: str, config: Config, custom_file: str | None = None
 ) -> BaseInjector:
     """
     Create an injector instance based on payload type.
 
     Args:
         payload_type: Type of payload (eicar, beef, alert, keylogger, custom)
-        config: Configuration dictionary
+        config: Configuration instance
         custom_file: Path to custom JS file (for custom payload)
 
     Returns:
@@ -46,18 +46,22 @@ def create_injector(
 
     elif payload_type == "beef":
         injector_config = {
-            "host": config.get("beef", {}).get("host", "127.0.0.1"),
-            "port": config.get("beef", {}).get("port", 3000),
-            "hook_url": config.get("beef", {}).get("hook_url"),
+            "host": config.beef.host,
+            "port": config.beef.port,
+            "hook_url": config.beef.hook_url,
         }
         return BeefHookInjector(injector_config)
 
     elif payload_type == "alert":
-        injector_config = {"message": config.get("alert_message", "XSS Code Injection Test")}
+        # Alert test relies on an ad-hoc dict since it doesn't have a dedicated dataclass section
+        # We can pass an empty dict and let it use its defaults, or pass a hardcoded one for now
+        # since the original code was: config.get("alert_message", "XSS Code Injection Test")
+        injector_config = {"message": "XSS Code Injection Test"}
         return AlertTestInjector(injector_config)
 
     elif payload_type == "keylogger":
-        injector_config = {"max_log_entries": config.get("keylogger_max_entries", 50)}
+        # Keylogger also doesn't have a dedicated config section in the YAML schema currently
+        injector_config = {"max_log_entries": 50}
         return KeyloggerDemoInjector(injector_config)
 
     elif payload_type == "custom":
@@ -69,6 +73,64 @@ def create_injector(
     else:
         raise ValueError(f"Unknown payload type: {payload_type}")
 
+
+def _build_config_from_args(args: argparse.Namespace) -> Config:
+    """Build and override Config from CLI args."""
+    config_path = Path(args.config) if args.config else None
+    config = load_config(config_path)
+
+    config.network.interface = args.interface
+    config.network.queue_num = args.queue_num
+    if args.gateway:
+        config.network.gateway = args.gateway
+    config.network.arp_spoof_enabled = args.arp_spoof
+
+    config.beef.host = args.beef_host
+    config.beef.port = args.beef_port
+    if args.beef_api_token:
+        config.beef.api_token = args.beef_api_token
+    config.beef.enabled = args.monitor_beef
+
+    config.logging.verbose = args.verbose
+    if args.log_file:
+        config.logging.log_file = args.log_file
+    config.logging.log_requests = args.log_requests
+    config.logging.log_responses = args.log_responses
+
+    return config
+
+def _run_auto_hook_mode(
+    args: argparse.Namespace, config: Config, injector: BaseInjector
+) -> int:
+    """Run the auto-hook agent mode."""
+    try:
+        beef_integration = None
+        if config.beef.enabled:
+            beef_integration = BeEFIntegration(
+                host=config.beef.host,
+                port=config.beef.port,
+                api_token=config.beef.api_token,
+                verbose=config.logging.verbose,
+            )
+
+        auto_hook = AutoHookAgent(
+            interface=config.network.interface,
+            gateway=config.network.gateway,
+            subnet=args.subnet,
+            verbose=config.logging.verbose,
+        )
+
+        auto_hook.run_auto_hook(injector, config, beef_integration)
+        return 0
+
+    except KeyboardInterrupt:
+        print("\nInterrupted by user")
+        return 0
+    except Exception as e:
+        print(f"Error in auto-hook mode: {e}")
+        if config.logging.verbose:
+            traceback.print_exc()
+        return 1
 
 def main() -> int:
     """
@@ -180,28 +242,7 @@ Examples:
 
     args = parser.parse_args()
 
-    # Load configuration
-    config_path = Path(args.config) if args.config else None
-    config = load_config(config_path)
-
-    # Override config with CLI arguments
-    config.network.interface = args.interface
-    config.network.queue_num = args.queue_num
-    if args.gateway:
-        config.network.gateway = args.gateway
-    config.network.arp_spoof_enabled = args.arp_spoof
-
-    config.beef.host = args.beef_host
-    config.beef.port = args.beef_port
-    if args.beef_api_token:
-        config.beef.api_token = args.beef_api_token
-    config.beef.enabled = args.monitor_beef
-
-    config.logging.verbose = args.verbose
-    if args.log_file:
-        config.logging.log_file = args.log_file
-    config.logging.log_requests = args.log_requests
-    config.logging.log_responses = args.log_responses
+    config = _build_config_from_args(args)
 
     # Setup logging
     setup_logging(config.logging)
@@ -212,13 +253,17 @@ Examples:
         safety_config.validate(args.i_have_authorization)
     except Exception as e:
         print(f"Safety validation failed: {e}")
+        if config.logging.verbose:
+            traceback.print_exc()
         return 1
 
     # Create injector
     try:
-        injector = create_injector(args.payload, config.__dict__, args.custom_file)
+        injector = create_injector(args.payload, config, args.custom_file)
     except Exception as e:
         print(f"Error creating injector: {e}")
+        if config.logging.verbose:
+            traceback.print_exc()
         return 1
 
     # Get targets
@@ -240,32 +285,7 @@ Examples:
 
     # Auto-hook mode
     if args.auto_hook:
-        try:
-            beef_integration = None
-            if config.beef.enabled:
-                beef_integration = BeEFIntegration(
-                    host=config.beef.host,
-                    port=config.beef.port,
-                    api_token=config.beef.api_token,
-                    verbose=config.logging.verbose,
-                )
-
-            auto_hook = AutoHookAgent(
-                interface=config.network.interface,
-                gateway=config.network.gateway,
-                subnet=args.subnet,
-                verbose=config.logging.verbose,
-            )
-
-            auto_hook.run_auto_hook(injector, config, beef_integration)
-            return 0
-
-        except KeyboardInterrupt:
-            print("\nInterrupted by user")
-            return 0
-        except Exception as e:
-            print(f"Error in auto-hook mode: {e}")
-            return 1
+        return _run_auto_hook_mode(args, config, injector)
 
     # ARP spoofing
     if args.arp_spoof:
@@ -289,6 +309,8 @@ Examples:
 
         except Exception as e:
             print(f"Error starting ARP spoofer: {e}")
+            if config.logging.verbose:
+                traceback.print_exc()
             return 1
 
     # BeEF monitoring
@@ -327,6 +349,8 @@ Examples:
         return 0
     except Exception as e:
         print(f"Error in NFQUEUE loop: {e}")
+        if config.logging.verbose:
+            traceback.print_exc()
         return 1
 
 

@@ -1,15 +1,9 @@
-# Core dependencies
+# All dependencies are declared in pyproject.toml.
+# Install with:  pip install -e .[linux,dev]
+#
+# This file exists only for CI/tools that require a requirements.txt.
+# It mirrors the core (non-optional) dependencies from pyproject.toml.
 scapy>=2.5.0
 pyyaml>=6.0
 requests>=2.31.0
 colorlog>=6.8.0
-
-# Linux-specific dependencies (install on Linux only)
-# netfilterqueue>=1.0.0  # Requires Linux headers
-
-# Development dependencies
-pytest>=7.4.0
-pytest-cov>=4.1.0
-black>=23.7.0
-ruff>=0.0.287
-mypy>=1.5.0

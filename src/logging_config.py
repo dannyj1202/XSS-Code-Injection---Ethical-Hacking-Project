@@ -11,6 +11,8 @@ from pathlib import Path
 
 from .config.settings import LoggingConfig
 
+_logging_configured = False
+
 
 # ANSI color codes
 class Colors:
@@ -55,13 +57,18 @@ class ColoredFormatter(logging.Formatter):
         return super().format(record)
 
 
-def setup_logging(config: LoggingConfig) -> None:
+def setup_logging(config: LoggingConfig, force: bool = False) -> None:
     """
     Setup logging configuration.
 
     Args:
         config: Logging configuration
+        force: Force reconfiguration even if already configured
     """
+    global _logging_configured
+    if _logging_configured and not force:
+        return
+    _logging_configured = True
     # Create logger
     logger = logging.getLogger()
     logger.setLevel(getattr(logging, config.level.upper()))
