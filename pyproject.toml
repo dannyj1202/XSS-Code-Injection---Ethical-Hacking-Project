@@ -38,13 +38,15 @@ classifiers = [
 
 dependencies = [
     "scapy>=2.5.0",
-    "netfilterqueue>=1.0.0",
     "pyyaml>=6.0",
     "requests>=2.31.0",
     "colorlog>=6.8.0",
 ]
 
 [project.optional-dependencies]
+linux = [
+    "netfilterqueue>=1.0.0",
+]
 dev = [
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",

@@ -1,9 +1,11 @@
 # Core dependencies
 scapy>=2.5.0
-netfilterqueue>=1.0.0
 pyyaml>=6.0
 requests>=2.31.0
 colorlog>=6.8.0
+
+# Linux-specific dependencies (install on Linux only)
+# netfilterqueue>=1.0.0  # Requires Linux headers
 
 # Development dependencies
 pytest>=7.4.0
