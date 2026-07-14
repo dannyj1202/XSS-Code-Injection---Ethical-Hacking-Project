@@ -1,7 +1,7 @@
 """Network interception module using NetfilterQueue."""
 
-from .packet_handler import PacketHandler
 from .nfqueue_loop import NFQueueLoop
+from .packet_handler import PacketHandler
 
 __all__ = [
     "PacketHandler",

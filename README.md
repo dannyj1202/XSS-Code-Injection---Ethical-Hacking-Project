@@ -71,7 +71,9 @@ xss-code-injection/
 │   │   ├── packet_handler.py   # HTTP parsing and modification
 │   │   └── nfqueue_loop.py     # NFQUEUE management
 │   ├── mitm/              # MITM positioning
-│   │   └── arp_spoofer.py # ARP spoofing with cleanup
+│   │   ├── arp_spoofer.py      # ARP spoofing with cleanup
+│   │   ├── iptables_manager.py # iptables rule install/remove
+│   │   └── shutdown.py         # Unified cleanup coordinator
 │   ├── beef_integration.py # BeEF REST API integration
 │   ├── auto_hook.py       # Auto-discovery and hook automation
 │   ├── cli.py             # Command-line interface
